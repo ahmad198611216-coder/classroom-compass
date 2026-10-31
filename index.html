@@ -2,6 +2,11 @@
 <title>Classroom Compass Pro · بوصلة الصف برو</title>
 <meta name="description" content="أداة مجانية للمعلم: إدارة الصف، النقاط والحضور، تحليل الدرجات، الخطط العلاجية والإثرائية ومتابعة التحسن — تطوير المعلم أحمد القطناني">
 <meta name="theme-color" content="#153D2B">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="بوصلة الصف">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -526,9 +531,10 @@ function showLogin(startMode){
       busy(true);
       if(mode === 'up'){
         if(v.name) ls('ccp.pendingName', v.name);
-        sb.auth.signUp({email:v.email, password:v.password, options:{emailRedirectTo:location.href.split('#')[0], data:{full_name:v.name}}}).then(function(r){
+        sb.auth.signUp({email:v.email, password:v.password, options:{emailRedirectTo:location.href.split('#')[0], data:{full_name:v.name, app:'classroom-compass'}}}).then(function(r){
           if(r.error) return fail(r.error);
           if(r.data && r.data.session) return done(r.data.session);
+          if(r.data && r.data.user && r.data.user.email_confirmed_at){ return sb.auth.signInWithPassword({email:v.email, password:v.password}).then(function(q){ if(q.data && q.data.session) return done(q.data.session); busy(false); mode = 'in'; render(); host.querySelector('#ccpEmail').value = v.email; say('check', true); }, fail); }
           if(r.data && r.data.user && Array.isArray(r.data.user.identities) && !r.data.user.identities.length){ busy(false); say('exists'); return; }
           busy(false); mode = 'in'; var em = v.email; render(); host.querySelector('#ccpEmail').value = em; say('check', true);
         }, fail);
@@ -562,6 +568,7 @@ function getSession(){
       var s = r && r.data && r.data.session;
       if(s){ finish(s, resolve); return; }
       var ok = false; try{ ok = sessionStorage.getItem('ccp.localok') === '1'; }catch(x){} if(ls('ccp.localonly') === '1' && ok){ resolve(null); return; }
+      if(location.hash === '#install'){ resolve(null); return; }
       showLogin().then(resolve);
     }, function(){ resolve(null); });
   });
@@ -1986,9 +1993,9 @@ function ballsTick(ts){
   if(!balls.list.length){ var R = Math.max(7 * dpr, Math.min(W, H) * 0.032); for(var i = 0; i < 24; i++){ var r = R * (0.7 + Math.random() * 0.6); balls.list.push({x: r + Math.random() * (W - 2 * r), y: H - r, vx:0, vy:0, r:r, c:BALL_COLS[i % BALL_COLS.length]}); } }
   var dt = balls.last ? Math.min(0.04, (ts - balls.last) / 1000) : 0.016; balls.last = ts;
   var nz = $('#stNoise'), F = H; if(nz && !nz.hidden){ var nr = nz.getBoundingClientRect(); if(nr.height) F = Math.max(H * 0.5, Math.round((nr.top - rc.top) * dpr) - 6 * dpr); }
-  var lvl = noiseLevel(), e = lvl < 38 ? 0 : Math.min(1, (lvl - 30) / 65), g = H * 2.2, moving = false;
+  var lvl = noiseLevel(); balls.e = (balls.e || 0) * 0.85 + (lvl < 8 ? 0 : Math.min(1, (lvl - 8) / 80)) * 0.15; var e = balls.e < 0.02 ? 0 : balls.e, g = H * 2.2, moving = false;
   balls.list.forEach(function(b){
-    if(e > 0 && Math.random() < (0.05 + e * 0.3)){ b.vy -= (0.5 + Math.random()) * e * H * 1.1; b.vx += (Math.random() - 0.5) * e * W * 0.9; }
+    if(e > 0 && Math.random() < (0.02 + e * e * 0.45)){ b.vy -= (0.35 + Math.random()) * (0.25 + e * 1.1) * H * e; b.vx += (Math.random() - 0.5) * (0.3 + e) * W * e; }
     b.vy += g * dt; b.vx *= e > 0 ? 0.992 : 0.86;
     b.x += b.vx * dt; b.y += b.vy * dt;
     if(b.x < b.r){ b.x = b.r; b.vx = Math.abs(b.vx) * 0.8; } else if(b.x > W - b.r){ b.x = W - b.r; b.vx = -Math.abs(b.vx) * 0.8; }
@@ -2528,9 +2535,11 @@ $('#modal').addEventListener('click', function(e){ if(e.target.id === 'modal') e
 if(PHONE) document.body.classList.add('phone');
 applyLang();
 go(ui.tab);
+if(location.hash === '#install') setTimeout(openInstall, 500);
 setInterval(tick, 250);
 initStore();
 })();
 </script>
 
+<script>if("serviceWorker" in navigator && location.protocol==="https:"){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script>
 </body></html>
